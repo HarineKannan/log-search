@@ -1,0 +1,20 @@
+{{!-- <select id="TypeofValues" onchange={{action "getTypeOfValues" }}>
+     <option value="">Select Type of Values</option>
+    <option value="least">Least Values</option>
+    <option value="top">Top Values</option>
+ </select> --}}
+
+
+
+{{!-- <select id="TypeofValues" onchange={{action (fn this.sendDataToParent "Data from my-component") value="target.value"}}>
+  <option value="">Select Type of Values</option>
+  <option value="least">Least Values</option>
+  <option value="top">Top Values</option>
+</select> --}}
+
+
+<select id="TypeofValues" onchange={{fn this.sendDataToParent}}>
+  <option value="">Select Type of Values</option>
+  <option value="least">Least Values</option>
+  <option value="top">Top Values</option>
+</select>
