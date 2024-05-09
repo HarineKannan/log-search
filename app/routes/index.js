@@ -25,78 +25,18 @@ export default class IndexRoute extends Route {
     currentPage = 1;
     searchResults = [];
 
-    async loadMoreLogs(query, page, pagesize) {
-        page ;
-        pagesize ;
+    setupController (controller, model, transition) {
+        let page = parseInt(transition.to.queryParams.page);
+        let pageSize = parseInt(transition.to.queryParams.pagesize);
+        let searchQuery = transition.to.queryParams.searchquery;
 
+        page = page ? page : 1;
+        pageSize = pageSize ? pageSize : 10;
+        searchQuery = searchQuery ? searchQuery : "";
 
-        const searchUrl = new URL('http://localhost:8080/LogFetcher/logFetcher');
-        searchUrl.searchParams.append("searchquery", query);
-        searchUrl.searchParams.append("page", page);
-        searchUrl.searchParams.append("resultsPerPage", pagesize);
-
-        const response = await fetch(searchUrl, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-
-        if (response.ok) {
-            let data = null;
-            try {
-                data = await response.json();
-            } catch(e) {
-                console.log(e);
-                return {
-                    TotalHits: 0,
-                    searchResults: []
-                };
-            }
-            console.log("debug: response", data);
-            const Result = data.searchResults;
-            // const totalHits = data.TotalHits;
-
-
-            return data;
-
-        } else {
-            console.error("unable to fetch search results, status: ", response.status);
-            return {
-                TotalHits: 0,
-                searchResults: []
-            };
-        }
+        controller.send('searchLogs', searchQuery);
+        controller.send('goToPage', 0, pageSize);
     }
-
-
-
-    async model (params) {
-        return;
-
-        console.log('debug: generating index model');
-        console.log(`debug: params.searchquery=${params.searchquery}`);
-        console.log(`debug: params.page=${params.page}`);
-        console.log(`debug: params.pagesize=${params.pagesize}`);
-
-        const pageNew = params.page;
-        const pagesizeNew = params.pagesize;
-        const searchqueryNew = params.searchquery;
-
-        let logs;
-        if (pageNew < this.pageOld) {
-            const startIndex = (pageNew-1)*pagesizeNew;
-            const page =this.searchResults.slice(startIndex, startIndex+pagesizeNew);
-            logs = {
-                searchResults: page
-            };
-        } else {
-            logs = await this.loadMoreLogs(searchqueryNew, pageNew, pagesizeNew);
-            this.searchResults.push(...logs.searchResults);
-        }
-
-        this.pageOld = pageNew;
-        return logs;
-    }
+   
 }
 

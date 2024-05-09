@@ -6,12 +6,24 @@ import queryparserLexer from './antlr/queryparserLexer.js';
 import queryparserParser from './antlr/queryparserParser.js';
 import * as antlr4 from 'antlr4';
 import { ErrorListener } from 'antlr4';
-import { start } from 'qunit';
 
 
 
 export default class IndexController extends Controller {
-  queryParams = ['logtype', 'searchquery', 'page', 'pagesize'];
+  queryParams = [{
+    logtype: {
+      type: 'string'
+    },
+    searchquery: {
+        type: 'string'
+    },
+    page: {
+      type: 'number'
+    },
+    pagesize: {
+      type: 'number'
+    }
+  }];
   @tracked logtype = null;
   @tracked searchquery = '';
   @tracked page = 1;
@@ -19,17 +31,13 @@ export default class IndexController extends Controller {
 
   @tracked logsBuffer = [];
   @tracked logsCurrentPage = [];
-
-  // TODO: remove
   @service router;
   @tracked isTableView = true;
   @tracked isListView = false;
   @tracked searchQuery = "task = '2'";
-  // TODO: replace with pagesize
   @tracked resultsPerPage = 10;
   isLoading = false;
   isSuccess = false;
-  // TODO: remove old usage
   @tracked totalHits =0;
   // @tracked pageset = Math.ceil(this.totalHits / this.resultsPerPage);
   @tracked showSuggestions = true;
@@ -47,16 +55,13 @@ export default class IndexController extends Controller {
   @tracked TypeofValues;
   @tracked gotValues = false;
   @tracked tableData = [];
-  // @tracked showDropdown = false;
 
 
   get pageset(){
     return Math.ceil(this.totalHits / this.pagesize);
   }
 
-  setUpController () {
-    // TODO: save and recover state using url query params
-  }
+  
 
   @action
   async generatePDF() {
@@ -338,9 +343,9 @@ export default class IndexController extends Controller {
   // fetches logs till endIndex, endIndex not included
   async fetchLogsTill(searchquery, endIndex) {
 
-    const searchUrl = new URL('http://localhost:8080/LogFetcher/logFetcher');
+    const searchUrl = new URL('http://localhost:8080/LogFetcher/logFetch');
     searchUrl.searchParams.append("searchquery", searchquery);
-    // FIXME: fix api then fix this
+
     searchUrl.searchParams.append("page", 1);
     searchUrl.searchParams.append("resultsPerPage",
       endIndex - this.logsBuffer.length);
@@ -356,6 +361,7 @@ export default class IndexController extends Controller {
       let responseJson = null;
       responseJson = await response.json();
       console.log("debug: fetchLogsTill() response,", responseJson);
+      console.log(this.logsBuffer);
       this.totalHits = responseJson.TotalHits;
       this.logsBuffer.push(...responseJson.searchResults);
     } else {
@@ -377,10 +383,11 @@ export default class IndexController extends Controller {
     return this.logsBuffer.length >= endIndex;
   }
 
+  @action
   async goToPage(page, startIndex, endIndex) {
     console.log("in go to page");
     if (!this.logsExist(startIndex, endIndex)) {
-      console.error("goToPage() failed index not in range");
+      // console.log("goToPage() failed index not in range");
       return;
     }
 
@@ -449,7 +456,6 @@ export default class IndexController extends Controller {
 
   @action
   updatePageSize(size) {
-    console.log("debug: typeof size = ", typeof size, "should be number");
     if (this.resultsPerPage == size) {
       return;
     }
@@ -459,12 +465,13 @@ export default class IndexController extends Controller {
         pagesize: size,
       },
     });
+    this.goToPage(1, 0, this.pagesize);
   }
 
   @action
   async syncLogs() {
     await this.fetchData(
-      'http://localhost:8080/LogFetcher/logFetcher',
+      'http://localhost:8080/LogFetcher/logFetch',
       {
         logtype: this.logtype,
       },
@@ -509,7 +516,7 @@ export default class IndexController extends Controller {
   @action
   async getTime() {
     const payload = {};
-    await this.SyncTime('http://localhost:8080/LogFetcher/logFetcher', payload);
+    await this.SyncTime('http://localhost:8080/LogFetcher/logFetch', payload);
   }
 
   @action
@@ -520,7 +527,6 @@ export default class IndexController extends Controller {
     try {
        await this.fetchLogsTill(searchQuery, this.pagesize);
     } catch (err) {
-      //TODO: notify user
       console.error("searchLogs failed", err);
       return;
     }
