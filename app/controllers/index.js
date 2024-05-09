@@ -177,6 +177,8 @@ export default class IndexController extends Controller {
         headers: {
           'Content-Type': 'application/json',
         },
+        mode: 'no-cors',
+
       });
 
       if (response.ok) {
@@ -355,6 +357,8 @@ export default class IndexController extends Controller {
       headers: {
           'Content-Type': 'application/json',
       },
+      // mode: "no-cors",
+
     });
 
     if (response.ok) {
@@ -430,6 +434,7 @@ export default class IndexController extends Controller {
       this.set('isLoading', true);
       const response = await fetch(url, {
         method: 'POST',
+        // mode: "no-cors",
         headers: {
           'Content-Type': 'application/json',
         },
@@ -493,11 +498,12 @@ export default class IndexController extends Controller {
       const searchUrl = new URL(url);
       const jsonPayload = JSON.stringify(payload);
       const response = await fetch(searchUrl, {
-        method: 'PUT',
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: jsonPayload,
+        // mode: "no-cors",
+        // body: jsonPayload,
       });
       if (response.ok) {
         const data = await response.json();
@@ -516,7 +522,7 @@ export default class IndexController extends Controller {
   @action
   async getTime() {
     const payload = {};
-    await this.SyncTime('http://localhost:8080/LogFetcher/logFetch', payload);
+    await this.SyncTime('http://localhost:8080/LogFetcher/timeUpdater', payload);
   }
 
   @action
