@@ -28,7 +28,7 @@ export default class IndexController extends Controller {
   @tracked searchquery = '';
   @tracked page = 1;
   @tracked pagesize = 10;
-
+  url = 'http://localhost:4201';
   @service router;
   @tracked isTableView = true;
   @tracked isListView = false;
@@ -39,7 +39,8 @@ export default class IndexController extends Controller {
   @tracked showSuggestions = true;
   @tracked syntaxError = false;
   @tracked syntaxErrorMessage = '';
-  @tracked Suggestion = [];
+  // @tracked Suggestion = [];
+  FieldNames = [];
   @tracked syntaxErrorMsg = '';
   @tracked selectedSuggestionIndex = 0;
   @tracked applicationLastTime = this.getTime;
@@ -52,14 +53,27 @@ export default class IndexController extends Controller {
   @tracked gotValues = false;
   @tracked tableData = [];
 
+  init(args){
+    super.init(...arguments);
+        this.extractFieldName();
+  }
+
+
   get pageset(){
     return Math.floor(this.model.TotalHits/this.pagesize);
   }
 
   @action
+  async extractFieldName() {
+    await this.getFieldName(
+      'http://localhost:4200/LogFetcher/extractFieldName'
+    );
+  }
+
+  @action
   async generatePDF() {
     await this.fetchData(
-      'http://localhost:8080/LogFetcher/generatePDF',
+      'http://localhost:4200/LogFetcher/generatePDF',
       {
         searchKeyword: this.searchQuery,
       },
@@ -94,11 +108,11 @@ export default class IndexController extends Controller {
     if (errorListener.syntaxErrorsCount > 0) {
       this.syntaxError = true;
       this.syntaxErrorMsg = errorListener.Suggestion;
-      let startsWithWords = this.syntaxErrorMsg.filter((suggestion) =>
-        suggestion.toLowerCase().startsWith(lastWord.toLowerCase()),
+      let startsWithWords = this.syntaxErrorMsg.filter((FieldNames) =>
+        FieldNames.toLowerCase().startsWith(lastWord.toLowerCase()),
       );
-      let containsWords = this.syntaxErrorMsg.filter((suggestion) =>
-        suggestion.toLowerCase().includes(lastWord.toLowerCase()),
+      let containsWords = this.syntaxErrorMsg.filter((FieldNames) =>
+        FieldNames.toLowerCase().includes(lastWord.toLowerCase()),
       );
 
       let combinedSuggestions = new Set(startsWithWords.concat(containsWords));
@@ -129,8 +143,6 @@ export default class IndexController extends Controller {
 
   @action
   logKeyAndValue(key, value) {
-    console.log('Key:', key);
-    console.log('Value:', value);
     if (this.searchQuery != '') {
       this.searchQuery += ' and ';
     }
@@ -155,7 +167,7 @@ export default class IndexController extends Controller {
   async getTypeOfValues() {
       if (this.TypeofValues != '') {
           const payload = this.generateTypeofValuePayload();
-          await this.GetAggregatedResults('http://localhost:8080/LogFetcher/topLeastValues', payload);
+          await this.GetAggregatedResults('http://localhost:4200/LogFetcher/topLeastValues', payload);
           this.gotValues = true;
           console.log(this.tableData);
       }
@@ -330,7 +342,6 @@ export default class IndexController extends Controller {
       words[words.length - 1] = suggestion;
       this.searchQuery = words.join(' ');
     }
-
     const inputElement = document.getElementById('searchQuery');
 
   }
@@ -348,7 +359,6 @@ export default class IndexController extends Controller {
   @action
   async previousPage() {
     if (this.page <= 1) {
-      // TODO: inform user
       console.log("error: no previous page");
       return;
     }
@@ -360,12 +370,35 @@ export default class IndexController extends Controller {
     });
   }
 
+
+  async getFieldName(url){
+    try{
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        if(response.ok){
+          console.log("Done");
+          const data = await response.json();
+          this.FieldNames = data.results;
+          console.log(this.FieldNames);
+        }
+        else {
+          throw new Error('Operation failed');
+        }
+    }
+    catch (error) {
+      console.error('Error:', error.message);
+    }
+  }
+
   async fetchData(url, body) {
     try {
       this.set('isLoading', true);
       const response = await fetch(url, {
         method: 'POST',
-        // mode: "no-cors",
         headers: {
           'Content-Type': 'application/json',
         },
@@ -402,7 +435,7 @@ export default class IndexController extends Controller {
   @action
   async syncLogs() {
     await this.fetchData(
-      'http://localhost:8080/LogFetcher/logFetch',
+      'http://localhost:4200/LogFetcher/logFetch',
       {
         logtype: this.logtype,
       },
@@ -428,8 +461,6 @@ export default class IndexController extends Controller {
         headers: {
           'Content-Type': 'application/json',
         },
-        // mode: "no-cors",
-        // body: jsonPayload,
       });
       if (response.ok) {
         const data = await response.json();
@@ -448,7 +479,7 @@ export default class IndexController extends Controller {
   @action
   async getTime() {
     const payload = {};
-    await this.SyncTime('http://localhost:8080/LogFetcher/timeUpdater', payload);
+    await this.SyncTime('http://localhost:4200/LogFetcher/timeUpdater', payload);
   }
 
   @action
@@ -474,6 +505,7 @@ class CustomErrorListener extends ErrorListener {
     const expectedTokens = msg.match(/{(.*?)}/);
     if (expectedTokens) {
       this.errorMessage = expectedTokens[1];
+
       this.Suggestion = this.errorMessage
         .split(',')
         .map((token) => token.replace(/'/g, '').trim());

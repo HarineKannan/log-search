@@ -22,7 +22,7 @@ export default class IndexRoute extends Route {
     async addPageToBuffer (searchQuery, pageNo, pageSize) {
         if (this.pageBuffer.get(pageNo)) return;
 
-        const searchUrl = new URL('http://localhost:8080/LogFetcher/logFetch');
+        const searchUrl = new URL('http://localhost:4200/LogFetcher/logFetch');
         searchUrl.searchParams.append("searchquery", searchQuery);
         searchUrl.searchParams.append("page", pageNo);
         searchUrl.searchParams.append("resultsPerPage", pageSize);

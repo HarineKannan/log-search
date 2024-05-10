@@ -53,14 +53,11 @@
         <button class="btn"  oninput={{action (mut this.searchQuery)
           value="target.value" id="searchQuery" }} type="button" {{on "click" (fn this.searchLogs this.searchQuery)}}>Search</button>
 
-
-
       </div>
 
       <div class="results-neededed">
         <p>No of results needed per page : </p>
         <input type="number" id="resultsPerPage" value={{this.resultsPerPage}} onchange={{action "updatePageSize" value="target.value" }}>
-
       </div>
     </div>
     <div>
@@ -141,18 +138,13 @@
 
     {{#if this.isListView}}
         <div class="list-view-content">
-             {{#each this.logsCurrentPage as |result|}}
+             {{#each @model.searchResults as |result|}}
                 <div class="list-item-box">
                     <div class="list-item">
                         {{#each-in result as |key value|}}
                               {{#if value}}
                                       <div class="list-item-property">
-                                       <button class="key-button" {{on "click" (action this.toggleDropDown key)}}>{{key}}</button>
-
-                                {{#if this.isit}}
-                                    {{dropdown-menu onSelect=(action this.handleData)}}
-                                {{/if}}
-                                         : <span {{action 'logKeyAndValue' key value}}>  {{value}}</span>
+                                        {{key}} : <span {{action 'logKeyAndValue' key value}}>  {{value}}</span>
 
                                       </div>
                                {{/if}}
