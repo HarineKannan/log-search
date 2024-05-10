@@ -59,7 +59,7 @@
 
       <div class="results-neededed">
         <p>No of results needed per page : </p>
-        <input type="number" id="resultsPerPage" value={{this.resultsPerPage}} onchange={{action this.updatePageSize value="target.value" }}>
+        <input type="number" id="resultsPerPage" value={{this.resultsPerPage}} onchange={{action "updatePageSize" value="target.value" }}>
 
       </div>
     </div>
@@ -72,7 +72,8 @@
  {{/if}}
 
   <div class="results-Container">
-    {{#if this.logsCurrentPage}}
+    {{#if @model.searchResults}}
+
     <div class="view-of-datas">
       <div class="table-view" {{on "click" this.switchToTableView}}>
         <img src="assets/images/table-view.png" alt="table view icon">
@@ -124,7 +125,7 @@
         </thead>
         <tbody>
 
-          {{#each this.logsCurrentPage as |result|}}
+          {{#each @model.searchResults as |result|}}
                <tr >
                     <td {{action (fn this.logKeyAndValue "eventrecordid" result.eventrecordid)}}>{{result.eventrecordid}}</td>
                     <td {{action (fn this.logKeyAndValue "system_time" result.system_time)}}>{{result.system_time}}</td>

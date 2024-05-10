@@ -1,42 +1,86 @@
 import Route from '@ember/routing/route';
-import { inject as service } from '@ember/service';
-
 
 export default class IndexRoute extends Route {
-    @service router;
-
     queryParams = {
         logtype: {
           refreshModel: false
         },
         searchquery: {
-          refreshModel: false
+          refreshModel: true
         },
         page: {
-          refreshModel: false
+          refreshModel: true
         },
         pagesize: {
-          refreshModel: false
+          refreshModel: true
         },
     };
 
-    pageOld = 1;
-    lastPage =  Math.ceil(this.totalHits / this.pagesize);
-    currentPage = 1;
-    searchResults = [];
+    pageBuffer = new Map();
+    totalHits = 0;
 
-    setupController (controller, model, transition) {
-        let page = parseInt(transition.to.queryParams.page);
-        let pageSize = parseInt(transition.to.queryParams.pagesize);
-        let searchQuery = transition.to.queryParams.searchquery;
+    async addPageToBuffer (searchQuery, pageNo, pageSize) {
+        if (this.pageBuffer.get(pageNo)) return;
 
-        page = page ? page : 1;
-        pageSize = pageSize ? pageSize : 10;
-        searchQuery = searchQuery ? searchQuery : "";
+        const searchUrl = new URL('http://localhost:8080/LogFetcher/logFetch');
+        searchUrl.searchParams.append("searchquery", searchQuery);
+        searchUrl.searchParams.append("page", pageNo);
+        searchUrl.searchParams.append("resultsPerPage", pageSize);
 
-        controller.send('searchLogs', searchQuery);
-        controller.send('goToPage', 0, pageSize);
+        const response = await fetch(searchUrl, {
+          method: 'GET',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+            const jsonResponse = await response.json();
+            this.pageBuffer.set(pageNo, jsonResponse.searchResults);
+            this.totalHits = jsonResponse.TotalHits;
+            return;
+        } else {
+            throw response;
+        }
     }
-   
-}
 
+    async model(params, transition) {
+        const newQueryParam = transition.to.queryParams;
+
+        if (!transition.from) {
+            const searchQuery = newQueryParam.searchquery ? newQueryParam.searchquery : "";
+            const page = newQueryParam.page ? newQueryParam.page : "1";
+            const pageSize = newQueryParam.pagesize ? newQueryParam.pagesize : "10";
+
+            try {
+                await this.addPageToBuffer(searchQuery, page, pageSize);
+            } catch (err) {
+                console.log(`unable to get logs page for searchQuery=${searchQuery}, page=${page}, pageSize=${pageSize}`, err);
+                return { searchResults: [], TotalHits: 0 };
+            }
+            return { searchResults: this.pageBuffer.get(page), TotalHits: this.totalHits };
+        }
+
+        const oldQueryParam = transition.from.queryParams;
+
+        let searchQueryChanged = newQueryParam.searchquery !== oldQueryParam.searchquery;
+        let pageSizeChanged = newQueryParam.pagesize !== oldQueryParam.pagesize;
+
+        if (searchQueryChanged || pageSizeChanged) {
+            this.pageBuffer.clear();
+        }
+
+        const searchQuery = newQueryParam.searchquery ? newQueryParam.searchquery : "";
+        const page = newQueryParam.page ? newQueryParam.page : "1";
+        const pageSize = newQueryParam.pagesize ? newQueryParam.pagesize : "10";
+
+        try {
+            await this.addPageToBuffer(searchQuery, page, pageSize);
+        } catch (err) {
+            console.error(`unable to get logs page for searchQuery=${searchQuery}, page=${page}, pageSize=${pageSize}`, err);
+            return { searchResults: [], TotalHits: 0 };
+        }
+
+        return { searchResults: this.pageBuffer.get(page), TotalHits: this.totalHits };
+    }
+}

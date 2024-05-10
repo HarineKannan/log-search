@@ -24,13 +24,11 @@ export default class IndexController extends Controller {
       type: 'number'
     }
   }];
-  @tracked logtype = null;
+  @tracked logtype = "System";
   @tracked searchquery = '';
   @tracked page = 1;
   @tracked pagesize = 10;
 
-  @tracked logsBuffer = [];
-  @tracked logsCurrentPage = [];
   @service router;
   @tracked isTableView = true;
   @tracked isListView = false;
@@ -38,8 +36,6 @@ export default class IndexController extends Controller {
   @tracked resultsPerPage = 10;
   isLoading = false;
   isSuccess = false;
-  @tracked totalHits =0;
-  // @tracked pageset = Math.ceil(this.totalHits / this.resultsPerPage);
   @tracked showSuggestions = true;
   @tracked syntaxError = false;
   @tracked syntaxErrorMessage = '';
@@ -56,12 +52,9 @@ export default class IndexController extends Controller {
   @tracked gotValues = false;
   @tracked tableData = [];
 
-
   get pageset(){
-    return Math.ceil(this.totalHits / this.pagesize);
+    return Math.floor(this.model.TotalHits/this.pagesize);
   }
-
-  
 
   @action
   async generatePDF() {
@@ -342,91 +335,29 @@ export default class IndexController extends Controller {
 
   }
 
-  // fetches logs till endIndex, endIndex not included
-  async fetchLogsTill(searchquery, endIndex) {
-
-    const searchUrl = new URL('http://localhost:8080/LogFetcher/logFetch');
-    searchUrl.searchParams.append("searchquery", searchquery);
-
-    searchUrl.searchParams.append("page", 1);
-    searchUrl.searchParams.append("resultsPerPage",
-      endIndex - this.logsBuffer.length);
-
-    const response = await fetch(searchUrl, {
-      method: 'GET',
-      headers: {
-          'Content-Type': 'application/json',
-      },
-      // mode: "no-cors",
-
-    });
-
-    if (response.ok) {
-      let responseJson = null;
-      responseJson = await response.json();
-      console.log("debug: fetchLogsTill() response,", responseJson);
-      console.log(this.logsBuffer);
-      this.totalHits = responseJson.TotalHits;
-      this.logsBuffer.push(...responseJson.searchResults);
-    } else {
-      throw response;
-    }
-  }
-
-  logsExist(startIndex, endIndex) {
-    if (startIndex > endIndex) return false;
-
-    const startIndexInRange = startIndex >= 0
-      && startIndex < (this.totalHits-1);
-    const endIndexInRange = endIndex > 0 && endIndex < this.totalHits;
-
-    return startIndexInRange && endIndexInRange;
-  }
-
-  logsExistInBuffer (startIndex, endIndex) {
-    return this.logsBuffer.length >= endIndex;
-  }
-
-  @action
-  async goToPage(page, startIndex, endIndex) {
-    console.log("in go to page");
-    if (!this.logsExist(startIndex, endIndex)) {
-      // console.log("goToPage() failed index not in range");
-      return;
-    }
-
-    if (!this.logsExistInBuffer(startIndex, endIndex)) {
-      await this.fetchLogsTill(this.searchquery, endIndex)
-    }
-
-    this.logsCurrentPage = this.logsBuffer.slice(startIndex, endIndex);
-    console.log(this.logsBuffer);
-    this.router.transitionTo({
-      queryParams: { page: page }
-    });
-  }
-
   @action
   async nextPage() {
-    const startIndex = this.page * this.pagesize;
-    const endIndex = startIndex + this.pagesize;
-
-    await this.goToPage(this.page+1, startIndex, endIndex);
+    this.router.transitionTo({
+      queryParams: {
+        page: this.page + 1
+      }
+    });
   }
 
 
   @action
   async previousPage() {
     if (this.page <= 1) {
-      console.log("can't go before 1");
+      // TODO: inform user
+      console.log("error: no previous page");
+      return;
     }
 
-    const startIndex = (this.page-2) * this.pagesize;
-    const endIndex = startIndex + this.pagesize;
-    console.log(startIndex,endIndex);
-
-
-    await this.goToPage(this.page-1, startIndex, endIndex);
+    this.router.transitionTo({
+      queryParams: {
+        page: this.page - 1
+      }
+    });
   }
 
   async fetchData(url, body) {
@@ -461,16 +392,11 @@ export default class IndexController extends Controller {
 
   @action
   updatePageSize(size) {
-    if (this.resultsPerPage == size) {
-      return;
-    }
-    this.resultsPerPage = size;
     this.router.transitionTo({
       queryParams: {
         pagesize: size,
       },
     });
-    this.goToPage(1, 0, this.pagesize);
   }
 
   @action
@@ -527,19 +453,10 @@ export default class IndexController extends Controller {
 
   @action
   async searchLogs(searchQuery) {
-    console.log(searchQuery);
-    this.logsBuffer = [];
-    
-    try {
-       await this.fetchLogsTill(searchQuery, this.pagesize);
-    } catch (err) {
-      console.error("searchLogs failed", err);
-      return;
-    }
-    this.logsCurrentPage = this.logsBuffer;
     this.router.transitionTo({
       queryParams: {
-        searchquery: searchQuery
+        searchquery: searchQuery,
+        page : 1
       }
     });
   }
