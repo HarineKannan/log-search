@@ -64,9 +64,7 @@
     </div>
   </div>
 
- {{#if this.gotValues}}
-     {{table-modal tableData = this.tableData}}
- {{/if}}
+
 
   <div class="results-Container">
     {{#if @model.searchResults}}
@@ -86,7 +84,9 @@
     <div class="left-button" {{on "click" this.previousPage}}>
       <img src="assets/images/left.png" alt="left arrow">
     </div>
-
+ {{#if this.gotValues}}
+     {{table-modal tableData = this.tableData}}
+ {{/if}}
     {{#if this.isTableView}}
       <div class="log-table">
       <table>

@@ -5,7 +5,7 @@ import { tracked } from '@glimmer/tracking';
 import queryparserLexer from './antlr/queryparserLexer.js';
 import queryparserParser from './antlr/queryparserParser.js';
 import * as antlr4 from 'antlr4';
-import { ErrorListener } from 'antlr4';
+import { ErrorListener, ParseTreeListener } from 'antlr4';
 
 
 
@@ -24,6 +24,8 @@ export default class IndexController extends Controller {
       type: 'number'
     }
   }];
+  @tracked fieldSuggestions = []; // Track field name suggestions
+
   @tracked logtype = "System";
   @tracked searchquery = '';
   @tracked page = 1;
@@ -39,7 +41,6 @@ export default class IndexController extends Controller {
   @tracked showSuggestions = true;
   @tracked syntaxError = false;
   @tracked syntaxErrorMessage = '';
-  // @tracked Suggestion = [];
   FieldNames = [];
   @tracked syntaxErrorMsg = '';
   @tracked selectedSuggestionIndex = 0;
@@ -87,6 +88,55 @@ export default class IndexController extends Controller {
     this.syntaxErrorMessage = '';
   }
 
+  // @action
+  // handleInput(event) {
+  //   this.searchQuery = event.target.value;
+  //   this.selectedSuggestion = null;
+  //   const inputQuery = this.searchQuery;
+  //   console.log(inputQuery);
+
+  //   const chars = new antlr4.InputStream(inputQuery);
+  //   const lexer = new queryparserLexer(chars);
+  //   const tokens = new antlr4.CommonTokenStream(lexer);
+  //   const parser = new queryparserParser(tokens);
+
+  //   const errorListener = new CustomErrorListener();
+  //   parser.removeErrorListeners();
+  //   parser.addErrorListener(errorListener);
+  //   const lastWord = inputQuery.split(' ').pop().trim();
+  //   parser.query();
+
+  //   if (errorListener.syntaxErrorsCount > 0) {
+  //     this.syntaxError = true;
+  //     this.syntaxErrorMsg = errorListener.Suggestion;
+  //     let startsWithWords = this.syntaxErrorMsg.filter((FieldNames) =>
+  //       FieldNames.toLowerCase().startsWith(lastWord.toLowerCase()),
+  //     );
+  //     console.log("sw",startsWithWords);
+  //     let containsWords = this.syntaxErrorMsg.filter((FieldNames) =>
+  //       FieldNames.toLowerCase().includes(lastWord.toLowerCase()),
+  //     );
+
+  //     let combinedSuggestions = new Set(startsWithWords.concat(containsWords));
+  //     this.syntaxErrorMessage = [...combinedSuggestions];
+  //     console.log("error msg",this.syntaxErrorMessage);
+
+  //     this.fieldSuggestions = Array.from(combinedSuggestions);
+  //   } else {
+  //     const lastChar = inputQuery.charAt(inputQuery.length - 1);
+  //     if (lastChar === ' ') {
+  //       console.log(this.showSuggestions);
+  //       this.syntaxError = true;
+  //       this.Suggestion = ['and', 'or'];
+  //       this.syntaxErrorMessage = this.Suggestion;
+  //       console.log('Yes');
+  //     }
+  //   }
+
+  //   this.selectedSuggestionIndex = -1;
+  //   console.log('selectedSuggestionIndex:', this.selectedSuggestionIndex);
+  //   const inputElement = document.getElementById('searchQuery');
+  // }
   @action
   handleInput(event) {
     this.searchQuery = event.target.value;
@@ -102,22 +152,23 @@ export default class IndexController extends Controller {
     const errorListener = new CustomErrorListener();
     parser.removeErrorListeners();
     parser.addErrorListener(errorListener);
+    parser.addParseListener(new MyGrammarListener());
     const lastWord = inputQuery.split(' ').pop().trim();
     parser.query();
 
+
     if (errorListener.syntaxErrorsCount > 0) {
+    console.log(errorListener.Suggestion);
+
       this.syntaxError = true;
       this.syntaxErrorMsg = errorListener.Suggestion;
-      let startsWithWords = this.syntaxErrorMsg.filter((FieldNames) =>
-        FieldNames.toLowerCase().startsWith(lastWord.toLowerCase()),
-      );
-      let containsWords = this.syntaxErrorMsg.filter((FieldNames) =>
-        FieldNames.toLowerCase().includes(lastWord.toLowerCase()),
-      );
+      let combinedSuggestions = new Set(this.syntaxErrorMsg.filter(FieldNames =>
+        FieldNames.toLowerCase().includes(lastWord.toLowerCase())
+      ));
 
-      let combinedSuggestions = new Set(startsWithWords.concat(containsWords));
       this.syntaxErrorMessage = [...combinedSuggestions];
-      console.log('No');
+      console.log("error msg",this.syntaxErrorMessage);
+
     } else {
       const lastChar = inputQuery.charAt(inputQuery.length - 1);
       if (lastChar === ' ') {
@@ -227,6 +278,31 @@ export default class IndexController extends Controller {
       this.ProviderNameMenuClicked = false;
       this.LevelMenuClicked = false;
     }
+
+
+//     @action
+// handleMenuClick(menuPropertyName) {
+//   switch (menuPropertyName) {
+//     case 'ProviderNameMenuClicked':
+//       this.ProviderNameMenuClicked = !this.ProviderNameMenuClicked;
+//       this.LevelMenuClicked = this.TaskMenuClicked = false;
+//       this.fieldname = 'provider_name';
+//       break;
+//     case 'LevelMenuClicked':
+//       this.LevelMenuClicked = !this.LevelMenuClicked;
+//       this.ProviderNameMenuClicked = this.TaskMenuClicked = false;
+//       this.fieldname = 'level';
+//       break;
+//     case 'TaskMenuClicked':
+//       this.TaskMenuClicked = !this.TaskMenuClicked;
+//       this.ProviderNameMenuClicked = this.LevelMenuClicked = false;
+//       this.fieldname = 'task';
+//       break;
+//     default:
+//       break;
+//   }
+
+
 
     setTimeout(() => {
       if (this[menuPropertyName]) {
@@ -502,16 +578,25 @@ class CustomErrorListener extends ErrorListener {
 
   syntaxError(recognizer, offendingSymbol, line, column, msg, e) {
     this.syntaxErrorsCount++;
+    this.errorMessage = msg;
+
     const expectedTokens = msg.match(/{(.*?)}/);
     if (expectedTokens) {
       this.errorMessage = expectedTokens[1];
-
-      this.Suggestion = this.errorMessage
-        .split(',')
-        .map((token) => token.replace(/'/g, '').trim());
+      this.Suggestion = this.errorMessage.split(',').map((token) => token.replace(/'/g, '').trim());
     } else {
       this.errorMessage = '';
       this.Suggestion = [];
     }
   }
+}
+
+class MyGrammarListener extends ParseTreeListener {
+    constructor() {
+        super();
+    }
+   
+    enterField(ctx) {
+        console.log('listener: in enterField, ', ctx);
+    }
 }
